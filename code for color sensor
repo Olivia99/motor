@@ -1,0 +1,168 @@
+#include <Flora_Pianoglove.h>
+
+#include <Wire.h>
+#define CLEARTHRESHHOLD 300
+
+#include "Adafruit_TCS34725.h"
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+int d = 2;
+int leftMotorPin = 5;
+int leftMotorSpeed = 250;
+void setup() {
+  pinMode(leftMotorPin, OUTPUT);
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  if (tcs.begin()) {
+    Serial.println("Found sensor");
+  } else {
+    Serial.println("No TCS34725 found ... check your connections");
+    while (1); // halt!
+  }
+  pinMode(2, INPUT);
+}
+
+  
+void loop() {
+  // put your main code here, to run repeatedly:
+  uint16_t clear, red, green, blue;
+
+  tcs.setInterrupt(false);      // turn on LED
+
+  delay(60);  // takes 50ms to read
+
+  tcs.getRawData(&red, &green, &blue, &clear);
+
+  tcs.setInterrupt(true);  // turn off LED
+
+  // not close enough to colorful item
+  if (clear < CLEARTHRESHHOLD) {
+    Serial.println("not clear enough!");
+    Serial.print("C:\t"); Serial.print(clear);
+    Serial.print("\tR:\t"); Serial.print(red);
+    Serial.print("\tG:\t"); Serial.print(green);
+    Serial.print("\tB:\t"); Serial.print(blue);
+    Serial.println();
+    //    setFreq(0);
+    //    strip.setPixelColor(0, strip.Color(0, 0, 0)); // turn off the LED
+    //    strip.show();
+    return;
+  }
+
+  //  Serial.println();
+
+  // Figure out some basic hex code for visualization
+  uint32_t sum = red;
+  sum += green;
+  sum += blue;
+  sum = clear;
+  float r, g, b;
+  r = red; r /= sum;
+  g = green; g /= sum;
+  b = blue; b /= sum;
+  r *= 256; g *= 256; b *= 256;
+  if (r > 255) r = 255;
+  if (g > 255) g = 255;
+  if (b > 255) b = 255;
+  //
+  Serial.print("\t");
+  Serial.print((int)r, HEX); Serial.print((int)g, HEX); Serial.print((int)b, HEX);
+  Serial.println();
+
+
+  // OK we have to find the two primary colors
+  // check if blue is smallest. MEME: fix for 'white'
+  float remove, normalize;
+  if ((b < g) && (b < r)) {
+    remove = b;
+    normalize = max(r - b, g - b);
+  } else if ((g < b) && (g < r)) {
+    remove = g;
+    normalize = max(r - g, b - g);
+  } else {
+    remove = r;
+    normalize = max(b - r, g - r);
+  }
+  // get rid of minority report
+  float rednorm = r - remove;
+  float greennorm = g - remove;
+  float bluenorm = b - remove;
+  // now normalize for the highest number
+  rednorm /= normalize;
+  greennorm /= normalize;
+  bluenorm /= normalize;
+
+  Serial.print(rednorm); Serial.print(", ");
+  Serial.print(greennorm); Serial.print(", ");
+  Serial.print(bluenorm); Serial.print(" ");
+  Serial.println();
+  d = digitalRead(2);
+  Serial.println(d);
+  if (d == 0) {
+    if (bluenorm <= 0.1) {
+      if (rednorm >= 0.99 && greennorm == 0) {
+        tone(8, 262, 800);//c4
+        delay(850);
+      } else if (rednorm >= 0.99 && greennorm <= 0.39 ) {
+        tone(8, 294, 800);//d4
+        delay(850);
+      } else if (rednorm >= 0.99 && greennorm >= 0.70 ) {
+        tone(8, 330, 800); //e4
+        delay(850);
+      } else if (greennorm == 1 && rednorm <= 0.3) {
+        tone(8, 440, 800); //a4
+        delay(850);
+      }
+
+    }
+    else if (greennorm <= 0.09) {
+      if (rednorm >= 0.99 && bluenorm <= 0.40) {
+        tone(8, 494, 800); //b4
+        delay(850);
+      }
+    }
+
+    else if (rednorm <= 0.1) {
+      if (greennorm >= 0.60 && bluenorm == 1) {
+        tone(8, 349, 800); //f4
+        delay(850);
+      } else if (greennorm <= 0.58 && bluenorm == 1) {
+        tone(8, 392, 800); //g4
+        delay(850);
+      }
+
+    }
+  } else if (d == 1) {
+    if (bluenorm <= 0.1) {
+      if (rednorm >= 0.99 && greennorm == 0) {
+        tone(8,  523, 800);//c5
+        delay(850);
+      } else if (rednorm >= 0.99 && greennorm <= 0.25 ) {
+        tone(8, 587, 800);//d5
+        delay(850);
+      } else if (rednorm >= 0.99 && greennorm >= 0.5 ) {
+        tone(8, 659, 800); //e5
+        delay(850);
+      }
+    };
+
+    if (rednorm <= 0.1) {
+      if (greennorm >= 0.55 && bluenorm == 1) {
+        tone(8, 698, 800); //f5
+        delay(850);
+      } else if (greennorm <= 0.54 && bluenorm == 1) {
+        tone(8, 784, 800); //g5
+        delay(850);
+      } else if (greennorm == 1 && bluenorm <= 0.10 ) {
+        tone(8, 880, 800); //a5
+        delay(850);
+      }
+    }
+  }
+
+};
+
+
+
+
+
